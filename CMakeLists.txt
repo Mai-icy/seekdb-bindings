@@ -71,7 +71,8 @@ if (CLANG_FORMAT_EXE)
         "${CMAKE_CURRENT_SOURCE_DIR}/python/src/*.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/python/src/*.h"
         "${CMAKE_CURRENT_SOURCE_DIR}/python/src/*.cc"
-        "${CMAKE_CURRENT_SOURCE_DIR}/python/src/*.cpp")
+        "${CMAKE_CURRENT_SOURCE_DIR}/python/src/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/typescript/native/*.c")
     add_custom_target(format
         COMMAND "${CLANG_FORMAT_EXE}" -i ${SEEKDB_CLANG_FORMAT_FILES}
         COMMENT "Running clang-format on project sources"
