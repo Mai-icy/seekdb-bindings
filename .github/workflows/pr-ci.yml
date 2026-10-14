@@ -342,7 +342,6 @@ jobs:
       - name: Build and test Node.js binding
         run: |
           npm ci --prefix typescript
-          npm run build --prefix typescript
           npm test --prefix typescript
 
   asan-ubsan-test:

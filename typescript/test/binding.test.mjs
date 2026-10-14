@@ -29,6 +29,36 @@ test("reports native open errors with their return code and diagnostic", async (
   }
 });
 
+test("rejects open when creating the native error throws", async () => {
+  const root = mkdtempSync(join(tmpdir(), "seekdb-node-error-fallback-"));
+  const file = join(root, "not-a-directory");
+  writeFileSync(file, "x");
+  const previous = Object.getOwnPropertyDescriptor(Error.prototype, "returnCode");
+  Object.defineProperty(Error.prototype, "returnCode", {
+    configurable: true,
+    set() { throw new Error("error setter invoked"); },
+  });
+  let timeout;
+  try {
+    const result = await Promise.race([
+      seekdb.open(file).then(
+        () => ({ kind: "resolved" }),
+        (error) => ({ kind: "rejected", error }),
+      ),
+      new Promise((resolveTimeout) => {
+        timeout = setTimeout(() => resolveTimeout({ kind: "timeout" }), 2000);
+      }),
+    ]);
+    assert.equal(result.kind, "rejected");
+    assert.match(result.error.message, /error setter invoked/);
+  } finally {
+    clearTimeout(timeout);
+    if (previous) Object.defineProperty(Error.prototype, "returnCode", previous);
+    else delete Error.prototype.returnCode;
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("opens two handles and gives an external MySQL client a working endpoint", async () => {
   const root = mkdtempSync(join(tmpdir(), "seekdb-node-test-"));
   const dir = join(root, "database");

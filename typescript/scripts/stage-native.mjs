@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const packageDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -27,14 +27,16 @@ function findFile(directory, name) {
 const libName = process.platform === "darwin" ? "libseekdb.dylib" :
   process.platform === "win32" ? "seekdb.dll" : "libseekdb.so";
 const serverName = process.platform === "win32" ? "seekdb.exe" : "seekdb";
+const nativeLibrary = findFile(libDir, libName);
 const files = [
   findFile(join(packageDir, "build"), "seekdb_native.node"),
-  findFile(libDir, libName),
+  nativeLibrary,
   findFile(libDir, serverName),
 ];
 if (process.platform === "win32") {
-  for (const name of readdirSync(libDir).filter((name) => name.endsWith(".dll"))) {
-    files.push(join(libDir, name));
+  const runtimeDir = dirname(nativeLibrary);
+  for (const name of readdirSync(runtimeDir).filter((name) => name.toLowerCase().endsWith(".dll"))) {
+    if (name !== libName) files.push(join(runtimeDir, name));
   }
 }
 for (const source of files) {

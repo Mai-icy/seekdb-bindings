@@ -24,13 +24,14 @@
   "scripts": {
     "build": "node scripts/build-lib.mjs && node scripts/build-addon.mjs && tsc -p tsconfig.json && node scripts/stage-native.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "npm run build",
     "test": "npm run test:types && node --test test/*.test.mjs",
     "test:types": "tsc -p tsconfig.test.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "mysql2": "^3.0.0",
-    "node-gyp": "^13.0.0",
+    "node-gyp": "^11.5.0",
     "typescript": "^7.0.0"
   }
 }

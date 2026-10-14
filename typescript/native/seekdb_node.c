@@ -128,6 +128,14 @@ static void complete_open(napi_env env, napi_status status, void *data)
         seekdb_close(task->handle);
     value =
         make_error(env, task->message[0] ? task->message : "seekdb_open failed", task->return_code);
+    if (!value) {
+        /* An error setter may throw; use that exception as the rejection reason. */
+        bool pending = false;
+        if (napi_is_exception_pending(env, &pending) == napi_ok && pending)
+            napi_get_and_clear_last_exception(env, &value);
+        if (!value)
+            napi_get_undefined(env, &value);
+    }
     if (value)
         napi_reject_deferred(env, task->deferred, value);
     napi_delete_async_work(env, task->work);

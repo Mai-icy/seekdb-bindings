@@ -18,12 +18,13 @@ a compatible `seekdb` executable available on `PATH` or set `SEEKDB_BIN`:
 git submodule update --init --recursive
 cd typescript
 npm install
-SEEKDB_BIN=/path/to/seekdb npm run build
-npm test
+SEEKDB_BIN=/path/to/seekdb npm test
 ```
 
-`npm run build` builds `libseekdb`, compiles the Node-API addon and TypeScript,
-then stages the addon, library, and server executable under `dist/native`.
+`npm test` builds the package before running the tests. To build without testing,
+run `SEEKDB_BIN=/path/to/seekdb npm run build`. The build creates `libseekdb`,
+compiles the Node-API addon and TypeScript, then stages the addon, library, and
+server executable under `dist/native`.
 The native files must match the host operating system and architecture.
 The package is private while platform-specific release artifacts are being
 defined; the local build can be consumed by JavaScript and TypeScript projects.
