@@ -5,12 +5,12 @@ import { join, resolve } from "node:path";
 import test from "node:test";
 import mysql from "mysql2/promise";
 
-import { SeekDB, SeekDBError } from "../dist/index.js";
+import { seekdb, seekdbError } from "../dist/index.js";
 
 test("validates JavaScript input before opening", async () => {
-  await assert.rejects(SeekDB.open(""), TypeError);
-  await assert.rejects(SeekDB.open("data", { parameters: { memory_budget: 1 } }), TypeError);
-  await assert.rejects(SeekDB.open("data", { parameters: { "": "x" } }), TypeError);
+  await assert.rejects(seekdb.open(""), TypeError);
+  await assert.rejects(seekdb.open("data", { parameters: { memory_budget: 1 } }), TypeError);
+  await assert.rejects(seekdb.open("data", { parameters: { "": "x" } }), TypeError);
 });
 
 test("reports native open errors with their return code and diagnostic", async () => {
@@ -18,8 +18,8 @@ test("reports native open errors with their return code and diagnostic", async (
   try {
     const file = join(root, "not-a-directory");
     writeFileSync(file, "x");
-    await assert.rejects(SeekDB.open(file), (error) => {
-      assert.ok(error instanceof SeekDBError);
+    await assert.rejects(seekdb.open(file), (error) => {
+      assert.ok(error instanceof seekdbError);
       assert.equal(error.returnCode, -1);
       assert.match(error.message, /Cannot create\/access (database|run) directory/);
       return true;
@@ -36,8 +36,8 @@ test("opens two handles and gives an external MySQL client a working endpoint", 
   let second;
   let connection;
   try {
-    first = await SeekDB.open(dir, { parameters: { memory_budget: "1G" } });
-    second = await SeekDB.open(dir);
+    first = await seekdb.open(dir, { parameters: { memory_budget: "1G" } });
+    second = await seekdb.open(dir);
     assert.equal(first.dbDir, resolve(dir));
     assert.equal(first.closed, false);
 

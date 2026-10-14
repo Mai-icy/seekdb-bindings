@@ -1,6 +1,6 @@
-# SeekDB Node.js binding
+# seekdb Node.js binding
 
-This package manages a local SeekDB runtime. It starts or reuses the SeekDB
+This package manages a local seekdb runtime. It starts or reuses the seekdb
 server, returns the local MySQL-protocol endpoint, and releases the lifecycle
 handle. SQL connections are owned by the application and its chosen client.
 
@@ -31,10 +31,10 @@ defined; the local build can be consumed by JavaScript and TypeScript projects.
 ## Use
 
 ```js
-import { SeekDB } from "@oceanbase/seekdb-node";
+import { seekdb } from "@oceanbase/seekdb-node";
 import mysql from "mysql2/promise";
 
-const db = await SeekDB.open("./seekdb.db", {
+const db = await seekdb.open("./seekdb.db", {
   parameters: { memory_budget: "2G" },
 });
 let connection;
@@ -58,7 +58,7 @@ try {
 }
 ```
 
-The endpoint is valid while its `SeekDB` handle remains open. Close external SQL
+The endpoint is valid while its `seekdb` handle remains open. Close external SQL
 connections before the handle. `close()` is idempotent and does not delete data
 or guarantee immediate server-process termination. The returned `dbDir` is an
 absolute, normalized path. On Windows, a named-pipe endpoint may require a

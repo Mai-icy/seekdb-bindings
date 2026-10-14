@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export interface OpenOptions {
-  /** SeekDB server parameters. Ordinary parameters apply on first initialization. */
+  /** seekdb server parameters. Ordinary parameters apply on first initialization. */
   parameters?: Readonly<Record<string, string>>;
 }
 
@@ -27,7 +27,7 @@ const builtFor = JSON.parse(readFileSync(resolve(nativeDir, "platform.json"), "u
 };
 if (builtFor.platform !== process.platform || builtFor.arch !== process.arch) {
   throw new Error(
-    `SeekDB native files target ${builtFor.platform}/${builtFor.arch}, ` +
+    `seekdb native files target ${builtFor.platform}/${builtFor.arch}, ` +
     `but this runtime is ${process.platform}/${process.arch}`,
   );
 }
@@ -36,12 +36,12 @@ const native: NativeBinding = require(
 ) as NativeBinding;
 
 /** A failure reported by libseekdb. */
-export class SeekDBError extends Error {
+export class seekdbError extends Error {
   readonly returnCode: number;
 
   constructor(message: string, returnCode: number, options?: ErrorOptions) {
     super(message, options);
-    this.name = "SeekDBError";
+    this.name = "seekdbError";
     this.returnCode = returnCode;
   }
 }
@@ -66,8 +66,8 @@ function parameterPairs(options?: OpenOptions): string[] {
   return pairs;
 }
 
-/** An open, local SeekDB runtime. Close SQL clients before closing this handle. */
-export class SeekDB {
+/** An open, local seekdb runtime. Close SQL clients before closing this handle. */
+export class seekdb {
   readonly dbDir: string;
   #handle: object | undefined;
 
@@ -76,7 +76,7 @@ export class SeekDB {
     this.#handle = handle;
   }
 
-  static async open(dbDir: string, options?: OpenOptions): Promise<SeekDB> {
+  static async open(dbDir: string, options?: OpenOptions): Promise<seekdb> {
     if (typeof dbDir !== "string" || dbDir.length === 0) {
       throw new TypeError("dbDir must be a nonempty string");
     }
@@ -84,11 +84,11 @@ export class SeekDB {
     const normalized = resolve(dbDir);
     try {
       const handle = await native.open(normalized, pairs);
-      return new SeekDB(normalized, handle);
+      return new seekdb(normalized, handle);
     } catch (error) {
       if (error instanceof Error && "returnCode" in error &&
           typeof error.returnCode === "number") {
-        throw new SeekDBError(error.message, error.returnCode, { cause: error });
+        throw new seekdbError(error.message, error.returnCode, { cause: error });
       }
       throw error;
     }
@@ -100,7 +100,7 @@ export class SeekDB {
 
   connectionOptions(): ConnectionOptions {
     if (this.#handle === undefined) {
-      throw new Error("SeekDB is closed");
+      throw new Error("seekdb is closed");
     }
     return native.connectionOptions(this.#handle);
   }

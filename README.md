@@ -246,7 +246,7 @@ build/seekdb_cli [db_dir]
 
 ## Node.js binding
 
-The TypeScript package provides asynchronous `SeekDB.open()`,
+The TypeScript package provides asynchronous `seekdb.open()`,
 `connectionOptions()`, and `close()` for local instance management. Applications
 use their chosen MySQL-protocol client for SQL. Build and usage instructions are
 in [typescript/README.md](typescript/README.md).

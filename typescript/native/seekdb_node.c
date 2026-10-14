@@ -117,11 +117,11 @@ static void complete_open(napi_env env, napi_status status, void *data)
             }
             free(instance);
         }
-        snprintf(task->message, sizeof(task->message), "Cannot allocate Node.js SeekDB handle");
+        snprintf(task->message, sizeof(task->message), "Cannot allocate Node.js seekdb handle");
         task->return_code = SEEKDB_INTERNAL_ERROR;
     }
     else if (status != napi_ok) {
-        snprintf(task->message, sizeof(task->message), "SeekDB open work did not complete");
+        snprintf(task->message, sizeof(task->message), "seekdb open work did not complete");
         task->return_code = SEEKDB_INTERNAL_ERROR;
     }
     if (task->handle)
@@ -153,7 +153,7 @@ static napi_value native_open(napi_env env, napi_callback_info info)
 
     OpenTask *task = (OpenTask *)calloc(1, sizeof(*task));
     if (!task) {
-        napi_throw_error(env, NULL, "Cannot allocate SeekDB open task");
+        napi_throw_error(env, NULL, "Cannot allocate seekdb open task");
         return NULL;
     }
     task->db_dir = copy_js_string(env, argv[0]);
@@ -184,7 +184,7 @@ static napi_value native_open(napi_env env, napi_callback_info info)
         if (task->work)
             napi_delete_async_work(env, task->work);
         free_open_task(task);
-        napi_throw_error(env, NULL, "Cannot schedule SeekDB open task");
+        napi_throw_error(env, NULL, "Cannot schedule seekdb open task");
         return NULL;
     }
     return promise;
@@ -197,7 +197,7 @@ static NativeInstance *get_instance(napi_env env, napi_callback_info info)
     NativeInstance *instance = NULL;
     if (napi_get_cb_info(env, info, &argc, argv, NULL, NULL) != napi_ok || argc != 1 ||
         napi_get_value_external(env, argv[0], (void **)&instance) != napi_ok || !instance) {
-        napi_throw_type_error(env, NULL, "Expected a SeekDB native handle");
+        napi_throw_type_error(env, NULL, "Expected a seekdb native handle");
         return NULL;
     }
     return instance;
@@ -216,7 +216,7 @@ static napi_value native_connection_options(napi_env env, napi_callback_info inf
     if (!instance)
         return NULL;
     if (!instance->handle)
-        return throw_error(env, "SeekDB is closed", SEEKDB_INVALID_ARGUMENT);
+        return throw_error(env, "seekdb is closed", SEEKDB_INVALID_ARGUMENT);
 
     SeekdbConnectionOptions options = {0};
     int rc = seekdb_connection_options(instance->handle, &options);
@@ -247,7 +247,7 @@ static napi_value native_connection_options(napi_env env, napi_callback_info inf
             return throw_error(env, "Invalid named pipe options", SEEKDB_INTERNAL_ERROR);
     }
     else {
-        return throw_error(env, "Unknown SeekDB connection transport", SEEKDB_INTERNAL_ERROR);
+        return throw_error(env, "Unknown seekdb connection transport", SEEKDB_INTERNAL_ERROR);
     }
     return result;
 }
