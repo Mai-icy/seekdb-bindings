@@ -68,7 +68,8 @@ jobs:
               'lib/tests/*.h' \
               'python/src/*.cc' \
               'python/src/*.cpp' \
-              'python/src/*.h'
+              'python/src/*.h' \
+              'typescript/native/*.c'
           )
           if [ "${#files[@]}" -eq 0 ]; then
             echo "No clang-format-managed files changed."
@@ -332,6 +333,16 @@ jobs:
       - &run-tests
         name: Run tests
         run: ctest --test-dir build --output-on-failure
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Build and test Node.js binding
+        run: |
+          npm ci --prefix typescript
+          npm test --prefix typescript
 
   asan-ubsan-test:
     name: ASan/UBSan build and test

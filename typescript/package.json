@@ -1,0 +1,37 @@
+{
+  "name": "@oceanbase/seekdb-node",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local seekdb lifecycle bindings for Node.js",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "gypfile": false,
+  "scripts": {
+    "build": "node scripts/build-lib.mjs && node scripts/build-addon.mjs && tsc -p tsconfig.json && node scripts/stage-native.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "npm run build",
+    "test": "npm run test:types && node --test test/*.test.mjs",
+    "test:types": "tsc -p tsconfig.test.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "mysql2": "^3.0.0",
+    "node-gyp": "^11.5.0",
+    "typescript": "^7.0.0"
+  }
+}

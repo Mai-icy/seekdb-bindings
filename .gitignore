@@ -18,3 +18,8 @@ wheelhouse/
 # Python virtual environments
 myvenv/
 .venv/
+
+# Node.js binding build outputs
+node_modules/
+dist/
+*.node
