@@ -1,0 +1,128 @@
+#pragma once
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef void *SeekdbHandle;
+typedef void *SeekdbConnection;
+typedef void *SeekdbResult;
+typedef void *SeekdbType;
+typedef void *SeekdbValue;
+
+typedef enum {
+    SEEKDB_SUCCESS = 0,
+    SEEKDB_INTERNAL_ERROR = -1,
+    SEEKDB_INVALID_ARGUMENT = -2,
+    SEEKDB_NO_MORE_ROWS = -3,
+} SeekdbReturnCode;
+
+typedef enum {
+    SEEKDB_TYPE_NULL,
+    SEEKDB_TYPE_INT64,
+    SEEKDB_TYPE_UINT64,
+    SEEKDB_TYPE_FLOAT,
+    SEEKDB_TYPE_DECIMAL,
+    SEEKDB_TYPE_DATE,
+    SEEKDB_TYPE_DATETIME,
+    SEEKDB_TYPE_TIMESTAMP,
+    SEEKDB_TYPE_VARCHAR,
+} SeekdbTypeId;
+
+#define SEEKDB_CONNECTION_TRANSPORT_TCP "tcp"
+#define SEEKDB_CONNECTION_TRANSPORT_UNIX_SOCKET "unix_socket"
+#define SEEKDB_CONNECTION_TRANSPORT_NAMED_PIPE "named_pipe"
+
+typedef struct {
+    const char *transport;
+    unsigned int port;
+    const char *host;
+    const char *unix_socket;
+    const char *named_pipe;
+    const char *user;
+} SeekdbConnectionOptions;
+
+/* Open a seekdb instance rooted at db_dir.
+ *
+ * parameters is an optional NULL-terminated array of key/value pairs:
+ *   {"port", "3306", "mysql_port_mode", "specified", "memory_budget", "10G", NULL}
+ *
+ * Driver-reserved keys (handled separately from ordinary first-init parameters):
+ *   port — passed as --port on every spawn unless omitted or equal to "0".
+ *   mysql_port_mode — passed as --parameter on every spawn. It defaults to
+ *                     "disabled" on POSIX and "random" on Windows.
+ *
+ * To explicitly enable TCP listening, pass both port=<N> and
+ * mysql_port_mode=specified. port is passed through without value validation;
+ * the seekdb server validates its value. mysql_port is not accepted as a
+ * separate server parameter; use the driver-reserved port key.
+ *
+ * All other keys are seekdb server parameters, passed as --parameter on first
+ * init only. On first init the driver always seeds memory_budget=1G and
+ * log_disk_size=2G unless the caller overrides them; additional server keys
+ * may also be supplied. On restart, persisted values are kept (issue #26). */
+int seekdb_open(const char *db_dir, const char **parameters, SeekdbHandle *out_handle);
+/* Description of the most recent seekdb_open failure on the calling thread.
+ * Empty before the first open and after a successful open. The borrowed string
+ * remains valid until the next seekdb_open on this thread (or thread exit).
+ * No handle is required. Copy it before another open if it must be retained.
+ * Startup diagnostics describe the driver stage; server-internal failures may
+ * require inspecting the instance's log directory. */
+const char *seekdb_last_open_error(void);
+int seekdb_close(SeekdbHandle handle);
+/* Override the executable for subsequent opens. The path is copied and must
+ * be non-empty. Existing instances are unaffected. Android apps can point to
+ * their extracted native-library executable. Without an override, the executable
+ * is resolved beside libseekdb: seekdb.exe on Windows; otherwise seekdb, falling
+ * back to libseekdb_exec.so only if seekdb is missing (Android APK packaging). */
+int seekdb_set_binary_path(const char *path);
+
+/* Return the MySQL-protocol connection options for an open handle.
+ *
+ * transport is "tcp", "unix_socket", or "named_pipe". TCP returns host and
+ * port; local transports return their corresponding named field. Unused
+ * transport fields are NULL and port is zero for local transports. user is
+ * always "root". On POSIX, unix_socket is a per-handle short alias under /tmp;
+ * Android uses a process-local /proc/self/fd/<directory-fd>/sql.sock alias.
+ * Returned strings are borrowed and remain valid until seekdb_close(handle). */
+int seekdb_connection_options(SeekdbHandle handle, SeekdbConnectionOptions *out_options);
+
+int seekdb_connect(SeekdbHandle handle, const char *database, bool autocommit,
+                   SeekdbConnection *out_connection);
+int seekdb_disconnect(SeekdbConnection connection);
+
+int seekdb_last_error(SeekdbConnection connection, int *out_errno, const char **out_msg);
+
+int seekdb_query(SeekdbConnection connection, const char *sql, int64_t sql_len,
+                 SeekdbResult *out_result);
+
+int seekdb_result_free(SeekdbResult result);
+int seekdb_result_column_count(SeekdbResult result, int64_t *out_ncolumn);
+int seekdb_result_column_name(SeekdbResult result, int64_t index, const char **out_name);
+int seekdb_result_column_type_id(SeekdbResult result, int64_t index, SeekdbTypeId *out_typeid);
+int seekdb_result_row_count(SeekdbResult result, int64_t *out_nrows);
+int seekdb_result_next(SeekdbResult result);
+int seekdb_result_get_int64(SeekdbResult result, int64_t index, int64_t *out_value);
+int seekdb_result_get_uint64(SeekdbResult result, int64_t index, uint64_t *out_value);
+int seekdb_result_get_float(SeekdbResult result, int64_t index, double *out_value);
+int seekdb_result_get_str(SeekdbResult result, int64_t index, const char **out_data,
+                          size_t *out_len, int *out_is_null);
+
+int seekdb_trx_begin(SeekdbConnection connection);
+int seekdb_trx_commit(SeekdbConnection connection);
+int seekdb_trx_rollback(SeekdbConnection connection);
+
+int seekdb_value_free(SeekdbValue value);
+int seekdb_value_create_int64(int64_t int_value, SeekdbValue *out_value);
+int seekdb_value_get_int64(SeekdbValue value, int64_t *out_value);
+
+void *seekdb_malloc(size_t size);
+void seekdb_free(void *ptr);
+
+#ifdef __cplusplus
+}
+#endif

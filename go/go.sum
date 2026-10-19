@@ -1,0 +1,4 @@
+github.com/oceanbase/seekdb-bindings/go/native/darwin-arm64 v1.4.0 h1:7lL2Qr2bMGYpaN2dVhTA6xaArL8CAhXzPvpA492s0r8=
+github.com/oceanbase/seekdb-bindings/go/native/darwin-arm64 v1.4.0/go.mod h1:Czjd0KvDb2QwymlDdR4JUJ2seS53xDs7u67eai9ZdS4=
+github.com/oceanbase/seekdb-bindings/go/native/linux-amd64 v1.4.0 h1:idMatOK0LLgUQ4uGkli6OISIyM78TYkGbTnOP6W2ra0=
+github.com/oceanbase/seekdb-bindings/go/native/linux-amd64 v1.4.0/go.mod h1:YEQTVEpD+03IKFWyN8E4upTiRVpgPMBXxtRoLO7rUpw=
