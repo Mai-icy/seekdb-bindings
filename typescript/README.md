@@ -25,11 +25,20 @@ SEEKDB_BIN=/path/to/seekdb npm test
 run `SEEKDB_BIN=/path/to/seekdb npm run build`. The build creates `libseekdb`,
 compiles the Node-API addon and TypeScript, then stages the addon, library, and
 server executable under `dist/native`.
+On Linux and macOS, staging strips debug and unused symbols from the copied
+server executable, then runs `seekdb -V`; the source binary keeps its symbols.
+`npm test` also opens a database through the stripped package.
 The native files must match the host operating system and architecture. Linux
 builds additionally require a C/C++ toolchain, `readelf` (binutils), `ldd`, and
 `patchelf`. Staging recursively bundles non-glibc shared libraries, rejects
 missing or conflicting dependencies, and sets their runtime search paths to
 `$ORIGIN`. glibc and its loader remain system dependencies.
+
+On macOS, staging and `npm pack` reject unexpected non-system dynamic libraries.
+OpenSSL 3's `libssl.3.dylib` and `libcrypto.3.dylib` are the only approved
+external libraries; their installation must provide `LICENSE.txt`, which is
+included in the package. Rebuild a server linked to other Homebrew libraries
+before packaging it.
 
 `CC`, `CXX`, and `LDFLAGS` are preserved. On macOS, unset compilers are selected
 with `xcrun --find clang` / `clang++`, respecting the active developer SDK. The
@@ -70,6 +79,10 @@ Confirm publish rights to the chosen npm scope. The existing `seekdb` SDK uses
 lifecycle API. Adapting that SDK is required before replacing its native package.
 
 ## Use
+
+Importing the package does not load native files. `seekdb.open()` checks the
+platform and loads the native addon on first use. Call `seekdb.checkPlatform()`
+at startup if you want to validate and load it earlier.
 
 ```js
 import { seekdb } from "@oceanbase/seekdb-node";

@@ -334,6 +334,18 @@ jobs:
         name: Run tests
         run: ctest --test-dir build --output-on-failure
 
+  node-test:
+    name: Node.js build and test
+    needs: prepare-seekdb
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+
+    steps:
+      - *checkout-with-submodules
+      - *download-seekdb-binary
+      - *set-seekdb-bin
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -356,7 +368,7 @@ jobs:
           install_dir="$(mktemp -d)"
           npm install --prefix "$install_dir" --ignore-scripts --no-audit --no-fund typescript/build/npm/*.tgz
           cd "$install_dir"
-          node --input-type=module -e 'import { seekdb } from "@oceanbase/seekdb-node"; if (typeof seekdb.open !== "function") process.exit(1)'
+          node --input-type=module -e 'import { seekdb } from "@oceanbase/seekdb-node"; seekdb.checkPlatform()'
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
