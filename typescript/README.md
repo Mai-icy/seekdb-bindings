@@ -34,11 +34,9 @@ builds additionally require a C/C++ toolchain, `readelf` (binutils), `ldd`, and
 missing or conflicting dependencies, and sets their runtime search paths to
 `$ORIGIN`. glibc and its loader remain system dependencies.
 
-On macOS, staging and `npm pack` reject unexpected non-system dynamic libraries.
-OpenSSL 3's `libssl.3.dylib` and `libcrypto.3.dylib` are the only approved
-external libraries; their installation must provide `LICENSE.txt`, which is
-included in the package. Rebuild a server linked to other Homebrew libraries
-before packaging it.
+On macOS, staging recursively bundles non-system absolute-path dynamic libraries,
+rewrites their references to `@loader_path`, and signs the staged files. Staging
+and `npm pack` reject unresolved absolute references left in the package.
 
 `CC`, `CXX`, and `LDFLAGS` are preserved. On macOS, unset compilers are selected
 with `xcrun --find clang` / `clang++`, respecting the active developer SDK. The

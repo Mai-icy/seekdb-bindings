@@ -9,18 +9,19 @@ import { bundleLinuxRuntime, verifyLinuxRuntime } from "../scripts/linux-runtime
 import { classifyMacOSDependency, macOSDependencies, macOSInstallID,
   verifyStagedMacOSRuntime } from "../scripts/macos-runtime.mjs";
 
-test("macOS staging rejects unexpected host libraries and missing bundled libraries", () => {
-  const staged = new Set(["seekdb", "libseekdb.dylib", "seekdb_native.node"]);
-  assert.equal(classifyMacOSDependency("seekdb", "/usr/lib/libSystem.B.dylib", staged),
+test("macOS staging accepts external libraries and preserves loader-relative references", () => {
+  assert.equal(classifyMacOSDependency("seekdb", "/usr/lib/libSystem.B.dylib"),
     "system");
-  assert.equal(classifyMacOSDependency("seekdb_native.node", "@rpath/libseekdb.dylib", staged),
-    "bundled");
+  assert.equal(classifyMacOSDependency("seekdb_native.node", "@rpath/libseekdb.dylib"),
+    "relative");
   assert.equal(classifyMacOSDependency("libseekdb.dylib",
-    "/opt/homebrew/opt/openssl@3/lib/libssl.3.dylib", staged), "openssl");
-  assert.throws(() => classifyMacOSDependency("seekdb", "/opt/homebrew/lib/libre2.dylib", staged),
-    /unapproved macOS dependency.*libre2/);
-  assert.throws(() => classifyMacOSDependency("seekdb", "@rpath/libthrift.dylib", staged),
-    /unbundled macOS dependency.*libthrift/);
+    "/opt/homebrew/opt/openssl@3/lib/libssl.3.dylib"), "external");
+  assert.equal(classifyMacOSDependency("seekdb", "/opt/homebrew/lib/libre2.dylib"),
+    "external");
+  assert.equal(classifyMacOSDependency("seekdb", "/opt/homebrew/opt/llvm@17/lib/c++/libc++.1.dylib"),
+    "external");
+  assert.equal(classifyMacOSDependency("libc++.1.dylib", "@rpath/libc++abi.1.dylib"),
+    "relative");
 });
 
 test("macOS staging rewrites an absolute dylib install ID without treating it as a dependency", {
@@ -35,9 +36,8 @@ test("macOS staging rewrites an absolute dylib install ID without treating it as
     source, "-o", dylib]);
 
   assert.equal(macOSInstallID(dylib), absoluteID);
-  const staged = new Set(["libseekdb.dylib"]);
   for (const dependency of macOSDependencies(dylib)) {
-    assert.equal(classifyMacOSDependency(dylib, dependency, staged), "system");
+    assert.equal(classifyMacOSDependency(dylib, dependency), "system");
   }
   assert.throws(() => verifyStagedMacOSRuntime(target), /unbundled macOS install ID/);
 

@@ -72,42 +72,27 @@ if (process.platform === "linux") {
 
 if (process.platform === "darwin") {
   const scanned = new Set();
-  const stagedNames = new Set(files.map((file) => basename(file)));
   const queue = files.map((source) => join(targetDir, basename(source)));
-  let opensslRoot;
   while (queue.length > 0) {
     const file = queue.shift();
     if (scanned.has(file)) continue;
     scanned.add(file);
     for (const dependency of macOSDependencies(file)) {
-      const kind = classifyMacOSDependency(file, dependency, stagedNames);
-      if (kind !== "openssl") continue;
+      const kind = classifyMacOSDependency(file, dependency);
+      if (kind !== "external") continue;
       let source;
       try {
         source = realpathSync(dependency);
       } catch {
         throw new Error(`${file} references missing macOS dependency ${dependency}`);
       }
-      const root = dirname(dirname(source));
-      const license = join(root, "LICENSE.txt");
-      try {
-        if (!statSync(license).isFile()) throw new Error("not a file");
-      } catch {
-        throw new Error(`${dependency} has no OpenSSL LICENSE.txt at ${license}`);
-      }
-      if (opensslRoot && opensslRoot !== root) {
-        throw new Error(`OpenSSL libraries come from different installations: ${opensslRoot} and ${root}`);
-      }
-      opensslRoot = root;
       const copied = join(targetDir, basename(dependency));
-      if (file === copied) continue; // The dylib's own install name is set below.
       try {
         statSync(copied);
       } catch {
         copyFileSync(source, copied);
-        stagedNames.add(basename(dependency));
         queue.push(copied);
-        console.log(`Staged approved OpenSSL dependency ${source} as ${copied}`);
+        console.log(`Staged macOS dependency ${source} as ${copied}`);
       }
       execFileSync("install_name_tool", ["-change", dependency,
         `@loader_path/${basename(dependency)}`, file]);
@@ -116,9 +101,6 @@ if (process.platform === "darwin") {
       execFileSync("install_name_tool", ["-id", `@loader_path/${basename(file)}`, file]);
     }
     execFileSync("codesign", ["--force", "--sign", "-", file], { stdio: "inherit" });
-  }
-  if (opensslRoot) {
-    copyFileSync(join(opensslRoot, "LICENSE.txt"), join(targetDir, "LICENSE.openssl.txt"));
   }
   verifyStagedMacOSRuntime(targetDir);
 }

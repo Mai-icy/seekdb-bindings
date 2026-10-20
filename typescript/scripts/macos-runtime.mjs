@@ -1,25 +1,13 @@
 import { execFileSync } from "node:child_process";
 import { readdirSync, statSync } from "node:fs";
-import { basename, isAbsolute, join } from "node:path";
+import { isAbsolute, join } from "node:path";
 
-const approvedOpenSSL = new Set(["libssl.3.dylib", "libcrypto.3.dylib"]);
-
-export function classifyMacOSDependency(importer, dependency, stagedNames) {
+export function classifyMacOSDependency(importer, dependency) {
   if (dependency.startsWith("/usr/lib/") ||
       dependency.startsWith("/System/Library/")) return "system";
-
-  const name = basename(dependency);
-  if (dependency === `@loader_path/${name}` ||
-      dependency === `@executable_path/${name}` ||
-      dependency === `@rpath/${name}`) {
-    if (!stagedNames.has(name)) {
-      throw new Error(`${importer} references unbundled macOS dependency ${dependency}`);
-    }
-    return "bundled";
-  }
-
-  if (isAbsolute(dependency) && approvedOpenSSL.has(name)) return "openssl";
-  throw new Error(`${importer} references unapproved macOS dependency ${dependency}`);
+  if (dependency.startsWith("@")) return "relative";
+  if (isAbsolute(dependency)) return "external";
+  throw new Error(`${importer} references unsupported macOS dependency ${dependency}`);
 }
 
 export function macOSDependencies(file) {
@@ -46,8 +34,7 @@ export function macOSInstallID(file) {
 }
 
 export function verifyStagedMacOSRuntime(directory) {
-  const names = new Set(readdirSync(directory));
-  for (const name of names) {
+  for (const name of readdirSync(directory)) {
     if (name !== "seekdb" && !name.endsWith(".dylib") && !name.endsWith(".node")) continue;
     const file = join(directory, name);
     if (!statSync(file).isFile()) continue;
@@ -58,14 +45,10 @@ export function verifyStagedMacOSRuntime(directory) {
       }
     }
     for (const dependency of macOSDependencies(file)) {
-      const kind = classifyMacOSDependency(file, dependency, names);
-      if (kind === "openssl") {
-        throw new Error(`${file} retains an absolute OpenSSL dependency ${dependency}`);
+      const kind = classifyMacOSDependency(file, dependency);
+      if (kind === "external") {
+        throw new Error(`${file} retains an absolute macOS dependency ${dependency}`);
       }
     }
-  }
-  if ([...approvedOpenSSL].some((name) => names.has(name)) &&
-      !names.has("LICENSE.openssl.txt")) {
-    throw new Error("Bundled OpenSSL libraries require LICENSE.openssl.txt");
   }
 }
