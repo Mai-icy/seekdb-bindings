@@ -1,8 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readdirSync, realpathSync, rmSync, statSync,
+  writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bundleLinuxRuntime } from "./linux-runtime.mjs";
+import { classifyMacOSDependency, macOSDependencies, verifyStagedMacOSRuntime } from
+  "./macos-runtime.mjs";
 
 const packageDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const libDir = resolve(packageDir, "..", "build", "node-sdk");
@@ -46,6 +49,19 @@ for (const source of files) {
   console.log(`Staged ${destination}`);
 }
 
+const stagedServer = join(targetDir, serverName);
+if (process.platform === "linux" || process.platform === "darwin") {
+  const originalSize = statSync(stagedServer).size;
+  const strip = process.platform === "darwin"
+    ? execFileSync("xcrun", ["--find", "strip"], { encoding: "utf8" }).trim()
+    : "strip";
+  const args = process.platform === "darwin"
+    ? ["-S", "-x", stagedServer]
+    : ["--strip-debug", "--strip-unneeded", stagedServer];
+  execFileSync(strip, args, { stdio: "inherit" });
+  console.log(`Stripped staged seekdb: ${originalSize} -> ${statSync(stagedServer).size} bytes`);
+}
+
 if (process.platform === "linux") {
   if (!process.report.getReport().header.glibcVersionRuntime) {
     throw new Error("Linux native packaging currently requires a glibc build environment");
@@ -61,19 +77,22 @@ if (process.platform === "darwin") {
     const file = queue.shift();
     if (scanned.has(file)) continue;
     scanned.add(file);
-    const output = execFileSync("otool", ["-L", file], { encoding: "utf8" });
-    for (const line of output.split("\n").slice(1)) {
-      const dependency = line.match(/^\s+(.+?) \(compatibility version /)?.[1];
-      if (!dependency || dependency.startsWith("/usr/lib/") ||
-          dependency.startsWith("/System/Library/") || dependency.startsWith("@")) continue;
+    for (const dependency of macOSDependencies(file)) {
+      const kind = classifyMacOSDependency(file, dependency);
+      if (kind !== "external") continue;
+      let source;
+      try {
+        source = realpathSync(dependency);
+      } catch {
+        throw new Error(`${file} references missing macOS dependency ${dependency}`);
+      }
       const copied = join(targetDir, basename(dependency));
-      if (file === copied) continue; // The dylib's own install name is set below.
       try {
         statSync(copied);
       } catch {
-        copyFileSync(dependency, copied);
+        copyFileSync(source, copied);
         queue.push(copied);
-        console.log(`Staged ${copied}`);
+        console.log(`Staged macOS dependency ${source} as ${copied}`);
       }
       execFileSync("install_name_tool", ["-change", dependency,
         `@loader_path/${basename(dependency)}`, file]);
@@ -83,5 +102,9 @@ if (process.platform === "darwin") {
     }
     execFileSync("codesign", ["--force", "--sign", "-", file], { stdio: "inherit" });
   }
+  verifyStagedMacOSRuntime(targetDir);
 }
 writeFileSync(join(targetDir, "platform.json"), JSON.stringify(platform));
+if (process.platform === "linux" || process.platform === "darwin") {
+  execFileSync(stagedServer, ["-V"], { stdio: "inherit" });
+}

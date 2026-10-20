@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { accessSync, constants } from "node:fs";
+import { accessSync, constants, existsSync } from "node:fs";
 import { delimiter, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { compilerEnvironment } from "./compiler-env.mjs";
@@ -35,3 +35,12 @@ if (process.platform === "darwin") args.push("-DWITH_EXTERNAL_ZLIB=YES");
 const options = { stdio: "inherit", env: compilerEnvironment() };
 execFileSync("cmake", args, options);
 execFileSync("cmake", ["--build", buildDir, "--target", "seekdb", "--config", "Release", "--parallel"], options);
+
+// POST_BUILD does not run when the library is already up to date.
+const libraryName = process.platform === "darwin" ? "libseekdb.dylib" :
+  process.platform === "win32" ? "seekdb.dll" : "libseekdb.so";
+const outputDir = [buildDir, join(buildDir, "Release")]
+  .find((directory) => existsSync(join(directory, libraryName)));
+if (!outputDir) throw new Error(`Cannot find ${libraryName} under ${buildDir}`);
+const serverName = process.platform === "win32" ? "seekdb.exe" : "seekdb";
+execFileSync("cmake", ["-E", "copy_if_different", binary, join(outputDir, serverName)], options);

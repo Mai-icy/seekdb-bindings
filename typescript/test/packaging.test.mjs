@@ -6,6 +6,44 @@ import { basename, join } from "node:path";
 import test from "node:test";
 import { compilerEnvironment } from "../scripts/compiler-env.mjs";
 import { bundleLinuxRuntime, verifyLinuxRuntime } from "../scripts/linux-runtime.mjs";
+import { classifyMacOSDependency, macOSDependencies, macOSInstallID,
+  verifyStagedMacOSRuntime } from "../scripts/macos-runtime.mjs";
+
+test("macOS staging accepts external libraries and preserves loader-relative references", () => {
+  assert.equal(classifyMacOSDependency("seekdb", "/usr/lib/libSystem.B.dylib"),
+    "system");
+  assert.equal(classifyMacOSDependency("seekdb_native.node", "@rpath/libseekdb.dylib"),
+    "relative");
+  assert.equal(classifyMacOSDependency("libseekdb.dylib",
+    "/opt/homebrew/opt/openssl@3/lib/libssl.3.dylib"), "external");
+  assert.equal(classifyMacOSDependency("seekdb", "/opt/homebrew/lib/libre2.dylib"),
+    "external");
+  assert.equal(classifyMacOSDependency("seekdb", "/opt/homebrew/opt/llvm@17/lib/c++/libc++.1.dylib"),
+    "external");
+  assert.equal(classifyMacOSDependency("libc++.1.dylib", "@rpath/libc++abi.1.dylib"),
+    "relative");
+});
+
+test("macOS staging rewrites an absolute dylib install ID without treating it as a dependency", {
+  skip: process.platform !== "darwin",
+}, (t) => {
+  const { root, target } = fixture(t);
+  const dylib = join(target, "libseekdb.dylib");
+  const source = join(root, "library.c");
+  writeFileSync(source, "int seekdb_test(void) { return 42; }\n");
+  const absoluteID = join(root, "libseekdb.dylib");
+  execFileSync("xcrun", ["clang", "-dynamiclib", "-install_name", absoluteID,
+    source, "-o", dylib]);
+
+  assert.equal(macOSInstallID(dylib), absoluteID);
+  for (const dependency of macOSDependencies(dylib)) {
+    assert.equal(classifyMacOSDependency(dylib, dependency), "system");
+  }
+  assert.throws(() => verifyStagedMacOSRuntime(target), /unbundled macOS install ID/);
+
+  execFileSync("install_name_tool", ["-id", "@loader_path/libseekdb.dylib", dylib]);
+  assert.doesNotThrow(() => verifyStagedMacOSRuntime(target));
+});
 
 test("explicit compilers and linker flags survive macOS compiler selection", () => {
   const env = { CC: "/custom/cc", CXX: "/custom/cxx", LDFLAGS: "-L/custom/lib" };

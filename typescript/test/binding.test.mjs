@@ -1,11 +1,33 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 import mysql from "mysql2/promise";
 
 import { seekdb, seekdbError } from "../dist/index.js";
+
+test("import does not inspect native files until first use", async () => {
+  const root = mkdtempSync(join(tmpdir(), "seekdb-node-lazy-"));
+  try {
+    const nativeDir = join(root, "native");
+    mkdirSync(nativeDir);
+    writeFileSync(join(root, "package.json"), '{"type":"module"}');
+    copyFileSync(new URL("../dist/index.js", import.meta.url), join(root, "index.js"));
+    const { seekdb: isolated } = await import(pathToFileURL(join(root, "index.js")).href);
+    const platformFile = join(nativeDir, "platform.json");
+    const otherPlatform = process.platform === "darwin" ? "linux" : "darwin";
+    writeFileSync(platformFile, JSON.stringify({ platform: otherPlatform, arch: process.arch }));
+    await assert.rejects(isolated.open(join(root, "db")), /seekdb native files target/);
+    assert.throws(() => isolated.checkPlatform(), /seekdb native files target/);
+
+    writeFileSync(platformFile, JSON.stringify({ platform: process.platform, arch: process.arch }));
+    assert.throws(() => isolated.checkPlatform(), { code: "MODULE_NOT_FOUND" });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test("validates JavaScript input before opening", async () => {
   await assert.rejects(seekdb.open(""), TypeError);
@@ -60,6 +82,7 @@ test("rejects open when creating the native error throws", async () => {
 });
 
 test("opens two handles and gives an external MySQL client a working endpoint", async () => {
+  seekdb.checkPlatform();
   const root = mkdtempSync(join(tmpdir(), "seekdb-node-test-"));
   const dir = join(root, "database");
   let first;

@@ -2,6 +2,7 @@ import { seekdb, seekdbError } from "../dist/index.js";
 import type { ConnectionOptions } from "../dist/index.js";
 
 async function useBinding() {
+  seekdb.checkPlatform();
   const db = await seekdb.open("./seekdb.db", {
     parameters: { memory_budget: "2G" },
   });

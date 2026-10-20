@@ -2,6 +2,7 @@ import { accessSync, constants, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { verifyLinuxRuntime } from "./linux-runtime.mjs";
+import { verifyStagedMacOSRuntime } from "./macos-runtime.mjs";
 
 export function checkPackage(directory, maximumGlibc) {
   const required = ["dist/index.js", "dist/index.d.ts", "dist/native/platform.json",
@@ -22,6 +23,7 @@ export function checkPackage(directory, maximumGlibc) {
     if (platform.libc !== "glibc") throw new Error("Rebuild the Linux package with libc metadata");
     platform.minimumGlibc = verifyLinuxRuntime(nativeDir, maximumGlibc);
   }
+  if (platform.platform === "darwin") verifyStagedMacOSRuntime(nativeDir);
   return platform;
 }
 

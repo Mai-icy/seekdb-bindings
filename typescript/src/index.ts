@@ -21,26 +21,31 @@ interface NativeBinding {
 
 const require = createRequire(import.meta.url);
 const nativeDir = resolve(dirname(fileURLToPath(import.meta.url)), "native");
-const builtFor = JSON.parse(readFileSync(resolve(nativeDir, "platform.json"), "utf8")) as {
-  platform: string;
-  arch: string;
-  libc?: string;
-};
-if (builtFor.platform !== process.platform || builtFor.arch !== process.arch) {
-  throw new Error(
-    `seekdb native files target ${builtFor.platform}/${builtFor.arch}, ` +
-    `but this runtime is ${process.platform}/${process.arch}`,
-  );
-}
-if (builtFor.libc === "glibc") {
-  const report = process.report.getReport() as { header?: { glibcVersionRuntime?: string } };
-  if (!report.header?.glibcVersionRuntime) {
-    throw new Error("This seekdb native package requires glibc; musl/Alpine is not supported");
+let native: NativeBinding | undefined;
+
+function loadNative(): NativeBinding {
+  if (native === undefined) {
+    const builtFor = JSON.parse(readFileSync(resolve(nativeDir, "platform.json"), "utf8")) as {
+      platform: string;
+      arch: string;
+      libc?: string;
+    };
+    if (builtFor.platform !== process.platform || builtFor.arch !== process.arch) {
+      throw new Error(
+        `seekdb native files target ${builtFor.platform}/${builtFor.arch}, ` +
+        `but this runtime is ${process.platform}/${process.arch}`,
+      );
+    }
+    if (builtFor.libc === "glibc") {
+      const report = process.report.getReport() as { header?: { glibcVersionRuntime?: string } };
+      if (!report.header?.glibcVersionRuntime) {
+        throw new Error("This seekdb native package requires glibc; musl/Alpine is not supported");
+      }
+    }
+    native = require(resolve(nativeDir, "seekdb_native.node")) as NativeBinding;
   }
+  return native;
 }
-const native: NativeBinding = require(
-  resolve(nativeDir, "seekdb_native.node"),
-) as NativeBinding;
 
 /** A failure reported by libseekdb. */
 export class seekdbError extends Error {
@@ -83,6 +88,11 @@ export class seekdb {
     this.#handle = handle;
   }
 
+  /** Validate this package for the current runtime and load its native addon. */
+  static checkPlatform(): void {
+    loadNative();
+  }
+
   static async open(dbDir: string, options?: OpenOptions): Promise<seekdb> {
     if (typeof dbDir !== "string" || dbDir.length === 0) {
       throw new TypeError("dbDir must be a nonempty string");
@@ -90,7 +100,7 @@ export class seekdb {
     const pairs = parameterPairs(options);
     const normalized = resolve(dbDir);
     try {
-      const handle = await native.open(normalized, pairs);
+      const handle = await loadNative().open(normalized, pairs);
       return new seekdb(normalized, handle);
     } catch (error) {
       if (error instanceof Error && "returnCode" in error &&
@@ -109,12 +119,12 @@ export class seekdb {
     if (this.#handle === undefined) {
       throw new Error("seekdb is closed");
     }
-    return native.connectionOptions(this.#handle);
+    return loadNative().connectionOptions(this.#handle);
   }
 
   close(): void {
     if (this.#handle !== undefined) {
-      native.close(this.#handle);
+      loadNative().close(this.#handle);
       this.#handle = undefined;
     }
   }
